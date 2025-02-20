@@ -1,13 +1,11 @@
-import path from 'path'
 import type { UserConfig } from 'vite'
+import path from 'node:path'
 import Vue from '@vitejs/plugin-vue'
-import Components from 'unplugin-vue-components/vite'
-import { VantResolver } from 'unplugin-vue-components/resolvers'
-import Markdown from 'vite-plugin-md'
-import Icons from 'unplugin-icons/vite'
 import IconsResolver from 'unplugin-icons/resolver'
-// @ts-expect-error missing types
-import SVG from 'vite-plugin-vue-svg'
+import Icons from 'unplugin-icons/vite'
+import { VantResolver } from 'unplugin-vue-components/resolvers'
+import Components from 'unplugin-vue-components/vite'
+import Markdown from 'unplugin-vue-markdown/vite'
 import Inspect from 'vite-plugin-inspect'
 
 const config: UserConfig = {
@@ -20,8 +18,7 @@ const config: UserConfig = {
     Vue({
       include: [/\.vue$/, /\.md$/],
     }),
-    Markdown(),
-    SVG(),
+    Markdown({}),
     Icons(),
     Inspect(),
     Components({
@@ -29,12 +26,11 @@ const config: UserConfig = {
       directoryAsNamespace: true,
       dts: true,
       globalNamespaces: ['global'],
-      importPathTransform: path => path.endsWith('.svg') ? `${path}?component` : undefined,
-      include: [/\.vue$/, /\.md$/],
+      include: [/\.vue($|\?)/, /\.md($|\?)/],
       resolvers: [
         (name) => {
           if (name === 'MyCustom')
-            return '/src/CustomResolved.vue'
+            return path.resolve(__dirname, 'src/CustomResolved.vue').replaceAll('\\', '/')
         },
         VantResolver(),
         IconsResolver({

@@ -10,7 +10,7 @@ function getSideEffects(componentName: string) {
   if (/^Table|^Slider|^Tab/.test(componentName))
     sideEffects.push('element-resize-detector')
 
-  if (/^Date/.test(componentName))
+  if (componentName.startsWith('Date'))
     sideEffects.push('js-calendar')
 
   return sideEffects
@@ -56,7 +56,7 @@ export function ViewUiResolver(): ComponentResolver {
       if (name.match(/^I[A-Z]/)) {
         const compName = name.slice(1)
         return {
-          path: `view-design/src/components/${getCompDir(compName)}`,
+          from: `view-design/src/components/${getCompDir(compName)}`,
           sideEffects: getSideEffects(compName),
         }
       }

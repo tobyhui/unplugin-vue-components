@@ -1,5 +1,6 @@
 import type { ComponentResolver } from '../../types'
 
+// @keep-sorted
 const components = [
   'Combobox',
   'ComboboxButton',
@@ -10,6 +11,7 @@ const components = [
   'Dialog',
   'DialogDescription',
   'DialogOverlay',
+  'DialogPanel',
   'DialogTitle',
   'Disclosure',
   'DisclosureButton',
@@ -39,13 +41,13 @@ const components = [
   'SwitchDescription',
   'SwitchGroup',
   'SwitchLabel',
-  'TransitionChild',
-  'TransitionRoot',
+  'Tab',
   'TabGroup',
   'TabList',
-  'Tab',
-  'TabPanels',
   'TabPanel',
+  'TabPanels',
+  'TransitionChild',
+  'TransitionRoot',
 ]
 
 export interface HeadlessUiResolverOptions {
@@ -71,8 +73,8 @@ export function HeadlessUiResolver(options: HeadlessUiResolverOptions = {}): Com
         const componentName = name.substring(prefix.length)
         if (components.includes(componentName)) {
           return {
-            importName: componentName,
-            path: '@headlessui/vue',
+            name: componentName,
+            from: '@headlessui/vue',
           }
         }
       }

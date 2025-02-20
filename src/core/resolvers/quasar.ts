@@ -1,7 +1,6 @@
-
-import { promises as fs } from 'fs'
-import { resolveModule } from 'local-pkg'
 import type { ComponentResolver } from '../../types'
+import { promises as fs } from 'node:fs'
+import { resolveModule } from 'local-pkg'
 
 /**
  * Resolver for Quasar
@@ -13,7 +12,7 @@ export function QuasarResolver(): ComponentResolver {
 
   return {
     type: 'component',
-    resolve: async(name: string) => {
+    resolve: async (name: string) => {
       if (!components.length) {
         const quasarApiListPath = resolveModule('quasar/dist/transforms/api-list.json')
         if (quasarApiListPath)
@@ -21,7 +20,7 @@ export function QuasarResolver(): ComponentResolver {
       }
 
       if (components.includes(name))
-        return { importName: name, path: 'quasar' }
+        return { name, from: 'quasar' }
     },
   }
 }

@@ -1,19 +1,21 @@
-import { join, resolve } from 'path'
-import { slash, toArray } from '@antfu/utils'
-import { isPackageExists } from 'local-pkg'
 import type { ComponentResolver, ComponentResolverObject, Options, ResolvedOptions } from '../types'
-import { LibraryResolver } from './helpers/libraryResolver'
+import { join, resolve } from 'node:path'
+import { slash, toArray } from '@antfu/utils'
+import { getPackageInfoSync, isPackageExists } from 'local-pkg'
+import { detectTypeImports } from './type-imports/detect'
 
-export const defaultOptions: Omit<Required<Options>, 'include' | 'exclude' | 'transformer' | 'globs' |'directives'> = {
+export const defaultOptions: Omit<Required<Options>, 'include' | 'exclude' | 'excludeNames' | 'transformer' | 'globs' | 'globsExclude' | 'directives' | 'types' | 'version'> = {
   dirs: 'src/components',
   extensions: 'vue',
   deep: true,
   dts: isPackageExists('typescript'),
 
   directoryAsNamespace: false,
+  collapseSamePrefixes: false,
   globalNamespaces: [],
 
-  libraries: [],
+  transformerUserResolveFunctions: true,
+
   resolvers: [],
 
   importPathTransform: v => v,
@@ -25,15 +27,19 @@ function normalizeResolvers(resolvers: (ComponentResolver | ComponentResolver[])
   return toArray(resolvers).flat().map(r => typeof r === 'function' ? { resolve: r, type: 'component' } : r)
 }
 
+function resolveGlobsExclude(root: string, glob: string) {
+  const excludeReg = /^!/
+  return slash(`${excludeReg.test(glob) ? '!' : ''}${resolve(root, glob.replace(excludeReg, ''))}`)
+}
+
 export function resolveOptions(options: Options, root: string): ResolvedOptions {
   const resolved = Object.assign({}, defaultOptions, options) as ResolvedOptions
-  resolved.libraries = toArray(resolved.libraries).map(i => typeof i === 'string' ? { name: i } : i)
   resolved.resolvers = normalizeResolvers(resolved.resolvers)
-  resolved.resolvers.push(...resolved.libraries.map(lib => LibraryResolver(lib)))
   resolved.extensions = toArray(resolved.extensions)
 
   if (resolved.globs) {
-    resolved.globs = toArray(resolved.globs).map((glob: string) => slash(resolve(root, glob)))
+    resolved.globs = toArray(resolved.globs)
+      .map(glob => resolveGlobsExclude(root, glob))
     resolved.resolvedDirs = []
   }
   else {
@@ -42,44 +48,70 @@ export function resolveOptions(options: Options, root: string): ResolvedOptions 
       : `{${resolved.extensions.join(',')}}`
 
     resolved.dirs = toArray(resolved.dirs)
-    resolved.resolvedDirs = resolved.dirs.map(i => slash(resolve(root, i)))
 
-    resolved.globs = resolved.resolvedDirs.map(i => resolved.deep
-      ? slash(join(i, `**/*.${extsGlob}`))
-      : slash(join(i, `*.${extsGlob}`)),
-    )
+    const globs = resolved.dirs.map(i => resolveGlobsExclude(root, i))
+
+    resolved.resolvedDirs = globs.filter(i => !i.startsWith('!'))
+    resolved.globs = globs.map((i) => {
+      let prefix = ''
+      if (i.startsWith('!')) {
+        prefix = '!'
+        i = i.slice(1)
+      }
+      return resolved.deep
+        ? prefix + slash(join(i, `**/*.${extsGlob}`))
+        : prefix + slash(join(i, `*.${extsGlob}`))
+    })
 
     if (!resolved.extensions.length)
       throw new Error('[unplugin-vue-components] `extensions` option is required to search for components')
   }
 
+  resolved.globsExclude = toArray(resolved.globsExclude || [])
+    .map(i => resolveGlobsExclude(root, i))
+
+  // Move negated globs to globsExclude
+  resolved.globs = resolved.globs.filter((i) => {
+    if (!i.startsWith('!'))
+      return true
+    resolved.globsExclude.push(i.slice(1))
+    return false
+  })
+
   resolved.dts = !resolved.dts
     ? false
     : resolve(
-      root,
-      typeof resolved.dts === 'string'
-        ? resolved.dts
-        : 'components.d.ts',
-    )
+        root,
+        typeof resolved.dts === 'string'
+          ? resolved.dts
+          : 'components.d.ts',
+      )
+
+  if (!resolved.types && resolved.dts)
+    resolved.types = detectTypeImports()
+  resolved.types = resolved.types || []
+
   resolved.root = root
-  resolved.transformer = options.transformer || getVueVersion() || 'vue3'
+  resolved.version = resolved.version ?? getVueVersion(root)
+  if (resolved.version < 2 || resolved.version >= 4)
+    throw new Error(`[unplugin-vue-components] unsupported version: ${resolved.version}`)
+
+  resolved.transformer = options.transformer || `vue${Math.trunc(resolved.version) as 2 | 3}`
   resolved.directives = (typeof options.directives === 'boolean')
     ? options.directives
     : !resolved.resolvers.some(i => i.type === 'directive')
-      ? false
-      : getVueVersion() === 'vue3'
-
+        ? false
+        : resolved.version >= 3
   return resolved
 }
 
-function getVueVersion() {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const vue = require('vue')
-    const version = vue?.default?.version || vue?.version || '3'
-    return version.startsWith('2.') ? 'vue2' : 'vue3'
-  }
-  catch {
-    return null
-  }
+function getVueVersion(root: string): 2 | 2.7 | 3 {
+  // To fixed [mlly] issue: https://github.com/unjs/mlly/issues/158
+  const raw = getPackageInfoSync('vue', { paths: [join(root, '/')] })?.version || '3'
+  const version = +(raw.split('.').slice(0, 2).join('.'))
+  if (version === 2.7)
+    return 2.7
+  else if (version < 2.7)
+    return 2
+  return 3
 }

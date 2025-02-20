@@ -1,5 +1,8 @@
-import type { ComponentResolver } from '../../types'
-import { kebabCase } from '../utils'
+import type { ComponentInfo, ComponentResolver } from '../../types'
+import Debug from 'debug'
+import { isExclude, kebabCase, pascalCase } from '../utils'
+
+const debug = Debug('unplugin-vue-components:resolvers:arco')
 
 const matchComponents = [
   {
@@ -14,7 +17,6 @@ const matchComponents = [
     pattern: /^BreadcrumbItem$/,
     componentDir: 'breadcrumb',
   },
-
   {
     pattern: /^ButtonGroup$/,
     componentDir: 'button',
@@ -26,6 +28,10 @@ const matchComponents = [
   {
     pattern: /^CarouselItem$/,
     componentDir: 'carousel',
+  },
+  {
+    pattern: /^CascaderPanel$/,
+    componentDir: 'cascader',
   },
   {
     pattern: /^CheckboxGroup$/,
@@ -40,7 +46,11 @@ const matchComponents = [
     componentDir: 'date-picker',
   },
   {
-    pattern: /^(Doption|Dgroup|Dsubmenu)$/,
+    pattern: /^DescriptionsItem$/,
+    componentDir: 'descriptions',
+  },
+  {
+    pattern: /^(Doption|Dgroup|Dsubmenu|DropdownButton)$/,
     componentDir: 'dropdown',
   },
   {
@@ -51,7 +61,6 @@ const matchComponents = [
     pattern: /^(Col|Row|GridItem)$/,
     componentDir: 'grid',
   },
-
   {
     pattern: /^(ImagePreview|ImagePreviewGroup)$/,
     componentDir: 'image',
@@ -84,23 +93,24 @@ const matchComponents = [
 
   {
     pattern: /^(SkeletonLine|SkeletonShape)$/,
-    componentDir: 'table',
+    componentDir: 'skeleton',
   },
   {
     pattern: /^Countdown$/,
     componentDir: 'statistic',
   },
-
   {
     pattern: /^Step$/,
     componentDir: 'steps',
   },
-
   {
     pattern: /^(Thead|Td|Th|Tr|Tbody|TableColumn)$/,
     componentDir: 'table',
   },
-
+  {
+    pattern: /^TagGroup$/,
+    componentDir: 'tag',
+  },
   {
     pattern: /^TabPane$/,
     componentDir: 'tabs',
@@ -109,20 +119,15 @@ const matchComponents = [
     pattern: /^TimelineItem$/,
     componentDir: 'timeline',
   },
-
   {
     pattern: /^(TypographyParagraph|TypographyTitle|TypographyText)$/,
     componentDir: 'typography',
   },
-
-  {
-    pattern: /^DescriptionsItem$/,
-    componentDir: 'descriptions',
-  },
 ]
 
 function getComponentStyleDir(importName: string, importStyle: boolean | 'css' | 'less') {
-  if (['ConfigProvider', 'Icon'].includes(importName)) return undefined
+  if (['ConfigProvider', 'Icon'].includes(importName))
+    return undefined
 
   let componentDir = kebabCase(importName)
   for (const item of matchComponents) {
@@ -131,11 +136,44 @@ function getComponentStyleDir(importName: string, importStyle: boolean | 'css' |
       break
     }
   }
-  if (importStyle === 'less') return `@arco-design/web-vue/es/${componentDir}/style/index.js`
-  if (importStyle === 'css' || importStyle) return `@arco-design/web-vue/es/${componentDir}/style/css.js`
+  if (importStyle === 'less')
+    return `@arco-design/web-vue/es/${componentDir}/style/index.js`
+  if (importStyle === 'css' || importStyle)
+    return `@arco-design/web-vue/es/${componentDir}/style/css.js`
 }
 
+function canResolveIcons(options?: ResolveIconsOption): options is AllowResolveIconOption {
+  if (options === undefined)
+    return false
+  if (typeof options === 'boolean')
+    return options
+  else
+    return options.enable
+}
+
+function getResolveIconPrefix(options?: ResolveIconsOption) {
+  if (canResolveIcons(options)) {
+    if (typeof options === 'boolean' && options)
+      return ''
+    else if (options.enable)
+      return options.iconPrefix ?? ''
+    else
+      return ''
+  }
+  return ''
+}
+
+export type DisallowResolveIconOption = undefined | false | { enable: false }
+export type AllowResolveIconOption = true | { enable: true, iconPrefix?: string }
+export type ResolveIconsOption = DisallowResolveIconOption | AllowResolveIconOption
+
 export interface ArcoResolverOptions {
+  /**
+   * exclude components that do not require automatic import
+   *
+   * @default []
+   */
+  exclude?: string | RegExp | (string | RegExp)[]
   /**
    * import style css or less with components
    *
@@ -147,7 +185,7 @@ export interface ArcoResolverOptions {
    *
    * @default false
    */
-  resolveIcons?: boolean
+  resolveIcons?: ResolveIconsOption
   /**
    * Control style automatic import
    *
@@ -171,23 +209,30 @@ export function ArcoResolver(
   return {
     type: 'component',
     resolve: (name: string) => {
-      if (options.resolveIcons && name.match(/^Icon/)) {
-        return {
-          importName: name,
-          path: '@arco-design/web-vue/es/icon',
+      if (canResolveIcons(options.resolveIcons)) {
+        const iconPrefix = pascalCase(getResolveIconPrefix(options.resolveIcons))
+        const newNameRegexp = new RegExp(`^${iconPrefix}Icon`)
+        if (newNameRegexp.test(name)) {
+          debug('found icon component name %s', name)
+          const rawComponentName = name.slice(iconPrefix.length)
+          debug('found icon component raw name %s', rawComponentName)
+          return {
+            name: rawComponentName,
+            as: name,
+            from: '@arco-design/web-vue/es/icon',
+          }
         }
       }
-      if (name.match(/^A[A-Z]/)) {
+      if (name.match(/^A[A-Z]/) && !isExclude(name, options.exclude)) {
         const importStyle = options.importStyle ?? 'css'
 
         const importName = name.slice(1)
-        const config = {
-          importName,
-          path: '@arco-design/web-vue',
+        const config: ComponentInfo = {
+          name: importName,
+          from: '@arco-design/web-vue',
         }
         if (options.sideEffect !== false)
-          (config as any).sideEffects = getComponentStyleDir(importName, importStyle)
-
+          config.sideEffects = getComponentStyleDir(importName, importStyle)
         return config
       }
     },

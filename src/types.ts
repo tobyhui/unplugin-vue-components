@@ -1,11 +1,28 @@
-import type { FilterPattern } from '@rollup/pluginutils'
-import type { TransformResult } from 'unplugin'
 import type { Awaitable } from '@antfu/utils'
+import type { TransformResult } from 'unplugin'
+import type { FilterPattern } from 'unplugin-utils'
+
+export interface ImportInfoLegacy {
+  /**
+   * @deprecated renamed to `as`
+   */
+  name?: string
+  /**
+   * @deprecated renamed to `name`
+   */
+  importName?: string
+  /**
+   * @deprecated renamed to `from`
+   */
+  path: string
+
+  sideEffects?: SideEffectsInfo
+}
 
 export interface ImportInfo {
+  as?: string
   name?: string
-  importName?: string
-  path: string
+  from: string
 }
 
 export type SideEffectsInfo = (ImportInfo | string)[] | ImportInfo | string | undefined
@@ -22,11 +39,6 @@ export interface ComponentResolverObject {
   resolve: ComponentResolverFunction
 }
 export type ComponentResolver = ComponentResolverFunction | ComponentResolverObject
-export interface UILibraryOptions {
-  name: string
-  prefix?: string
-  entries?: string[]
-}
 
 export type Matcher = (id: string) => boolean | null | undefined
 
@@ -60,6 +72,11 @@ export interface Options {
   exclude?: FilterPattern
 
   /**
+   * RegExp or string to match component names that will NOT be imported
+   */
+  excludeNames?: FilterPattern
+
+  /**
    * Relative paths to the directory to search for components.
    * @default 'src/components'
    */
@@ -74,9 +91,16 @@ export interface Options {
   /**
    * Glob patterns to match file names to be detected as components.
    *
-   * When specified, the `dirs` and `extensions` options will be ignored.
+   * When specified, the `dirs`, `extensions`, and `directoryAsNamespace` options will be ignored.
    */
   globs?: string | string[]
+
+  /**
+   * Negated glob patterns to exclude files from being detected as components.
+   *
+   * @default []
+   */
+  globsExclude?: string | string[]
 
   /**
    * Search for subdirectories
@@ -91,16 +115,21 @@ export interface Options {
   directoryAsNamespace?: boolean
 
   /**
+   * Collapse same prefixes (camel-sensitive) of folders and components
+   * to prevent duplication inside namespaced component name.
+   *
+   * Works when `directoryAsNamespace: true`
+   * @default false
+   */
+  collapseSamePrefixes?: boolean
+
+  /**
    * Subdirectory paths for ignoring namespace prefixes
-   * works when `directoryAsNamespace: true`
+   *
+   * Works when `directoryAsNamespace: true`
    * @default "[]"
    */
   globalNamespaces?: string[]
-
-  /**
-   * comp libraries to use auto import
-   */
-  libraries?: (string | UILibraryOptions)[]
 
   /**
    * Pass a custom function to resolve the component importing path from the component name.
@@ -122,11 +151,21 @@ export interface Options {
   transformer?: SupportedTransformer
 
   /**
+   * Tranform users' usage of resolveComponent/resolveDirective as well
+   *
+   * If disabled, only components inside templates (which compiles to `_resolveComponent` etc.)
+   * will be transformed.
+   *
+   * @default true
+   */
+  transformerUserResolveFunctions?: boolean
+
+  /**
    * Generate TypeScript declaration for global components
    *
    * Accept boolean or a path related to project root
    *
-   * @see https://github.com/vuejs/vue-next/pull/3399
+   * @see https://github.com/vuejs/core/pull/3399
    * @see https://github.com/johnsoncodehk/volar#using
    * @default true
    */
@@ -145,24 +184,39 @@ export interface Options {
    * default: `true` for Vue 3, `false` for Vue 2
    *
    * Babel is needed to do the transformation for Vue 2, it's disabled by default for performance concerns.
-   * To install Babel, run: `npm install -D @babel/parser @babel/traverse`
+   * To install Babel, run: `npm install -D @babel/parser`
    * @default undefined
    */
   directives?: boolean
+
+  /**
+   * Only provide types of components in library (registered globally)
+   */
+  types?: TypeImport[]
+
+  /**
+   * Vue version of project. It will detect automatically if not specified.
+   */
+  version?: 2 | 2.7 | 3
 }
 
 export type ResolvedOptions = Omit<
-Required<Options>,
-'resolvers'|'libraries'|'extensions'|'dirs'|'globalComponentsDeclaration'
+  Required<Options>,
+'resolvers' | 'extensions' | 'dirs' | 'globalComponentsDeclaration'
 > & {
   resolvers: ComponentResolverObject[]
-  libraries: UILibraryOptions[]
   extensions: string[]
   dirs: string[]
   resolvedDirs: string[]
   globs: string[]
+  globsExclude: string[]
   dts: string | false
   root: string
 }
 
 export type ComponentsImportMap = Record<string, string[] | undefined>
+
+export interface TypeImport {
+  from: string
+  names: string[]
+}

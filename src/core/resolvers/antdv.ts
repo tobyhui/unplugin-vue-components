@@ -1,12 +1,16 @@
-import { resolve } from 'path'
 import type { ComponentResolver, SideEffectsInfo } from '../../types'
 import { kebabCase } from '../utils'
+
 interface IMatcher {
   pattern: RegExp
   styleDir: string
 }
 
 const matchComponents: IMatcher[] = [
+  {
+    pattern: /^Affix/,
+    styleDir: 'affix',
+  },
   {
     pattern: /^Avatar/,
     styleDir: 'avatar',
@@ -16,10 +20,17 @@ const matchComponents: IMatcher[] = [
     styleDir: 'auto-complete',
   },
   {
+    pattern: /^Alert/,
+    styleDir: 'alert',
+  },
+  {
     pattern: /^Anchor/,
     styleDir: 'anchor',
   },
-
+  {
+    pattern: /^App/,
+    styleDir: 'app',
+  },
   {
     pattern: /^Badge/,
     styleDir: 'badge',
@@ -37,12 +48,24 @@ const matchComponents: IMatcher[] = [
     styleDir: 'checkbox',
   },
   {
+    pattern: /^Calendar/,
+    styleDir: 'calendar',
+  },
+  {
     pattern: /^Card/,
     styleDir: 'card',
   },
   {
+    pattern: /^Carousel/,
+    styleDir: 'carousel',
+  },
+  {
     pattern: /^Collapse/,
     styleDir: 'collapse',
+  },
+  {
+    pattern: /^Comment/,
+    styleDir: 'comment',
   },
   {
     pattern: /^Descriptions/,
@@ -53,13 +76,36 @@ const matchComponents: IMatcher[] = [
     styleDir: 'date-picker',
   },
   {
+    pattern: /^Divider/,
+    styleDir: 'divider',
+  },
+  {
+    pattern: /^Drawer/,
+    styleDir: 'drawer',
+  },
+  {
     pattern: /^Dropdown/,
     styleDir: 'dropdown',
   },
-
+  {
+    pattern: /^Empty/,
+    styleDir: 'empty',
+  },
+  {
+    pattern: /^Flex/,
+    styleDir: 'flex',
+  },
+  {
+    pattern: /^FloatButton/,
+    styleDir: 'float-button',
+  },
   {
     pattern: /^Form/,
     styleDir: 'form',
+  },
+  {
+    pattern: /^Grid/,
+    styleDir: 'grid',
   },
   {
     pattern: /^InputNumber/,
@@ -156,6 +202,14 @@ const matchComponents: IMatcher[] = [
     pattern: /^Upload/,
     styleDir: 'upload',
   },
+  {
+    pattern: /^Qrcode/,
+    styleDir: 'qrcode',
+  },
+  {
+    pattern: /^Space/,
+    styleDir: 'space',
+  },
 ]
 
 export interface AntDesignVueResolverOptions {
@@ -170,7 +224,7 @@ export interface AntDesignVueResolverOptions {
    *
    * @default 'css'
    */
-  importStyle?: boolean | 'css' | 'less'
+  importStyle?: boolean | 'css' | 'less' | 'css-in-js'
   /**
    * resolve `ant-design-vue' icons
    *
@@ -193,6 +247,18 @@ export interface AntDesignVueResolverOptions {
    * use commonjs build default false
    */
   cjs?: boolean
+
+  /**
+   * rename package
+   *
+   * @default 'ant-design-vue'
+   */
+  packageName?: string
+  /**
+   * customize prefix of component
+   * @default 'A'
+   */
+  prefix?: string
 }
 
 function getStyleDir(compName: string): string {
@@ -220,28 +286,38 @@ function getSideEffects(compName: string, options: AntDesignVueResolverOptions):
   if (!importStyle)
     return
   const lib = options.cjs ? 'lib' : 'es'
+  const packageName = options?.packageName || 'ant-design-vue'
 
-  if (importStyle === 'less' || importLess) {
+  if (importStyle === 'less' || importStyle === 'css-in-js' || importLess) {
     const styleDir = getStyleDir(compName)
-    return `ant-design-vue/${lib}/${styleDir}/style`
+    return `${packageName}/${lib}/${styleDir}/style`
   }
   else {
     const styleDir = getStyleDir(compName)
-    return `ant-design-vue/${lib}/${styleDir}/style/css`
+    return `${packageName}/${lib}/${styleDir}/style/css`
   }
 }
-const primitiveNames = ['Affix', 'Anchor', 'AnchorLink', 'AutoComplete', 'AutoCompleteOptGroup', 'AutoCompleteOption', 'Alert', 'Avatar', 'AvatarGroup', 'BackTop', 'Badge', 'BadgeRibbon', 'Breadcrumb', 'BreadcrumbItem', 'BreadcrumbSeparator', 'Button', 'ButtonGroup', 'Calendar', 'Card', 'CardGrid', 'CardMeta', 'Collapse', 'CollapsePanel', 'Carousel', 'Cascader', 'Checkbox', 'CheckboxGroup', 'Col', 'Comment', 'ConfigProvider', 'DatePicker', 'MonthPicker', 'WeekPicker', 'RangePicker', 'QuarterPicker', 'Descriptions', 'DescriptionsItem', 'Divider', 'Dropdown', 'DropdownButton', 'Drawer', 'Empty', 'Form', 'FormItem', 'FormItemRest', 'Grid', 'Input', 'InputGroup', 'InputPassword', 'InputSearch', 'Textarea', 'Image', 'ImagePreviewGroup', 'InputNumber', 'Layout', 'LayoutHeader', 'LayoutSider', 'LayoutFooter', 'LayoutContent', 'List', 'ListItem', 'ListItemMeta', 'Menu', 'MenuDivider', 'MenuItem', 'MenuItemGroup', 'SubMenu', 'Mentions', 'MentionsOption', 'Modal', 'Statistic', 'StatisticCountdown', 'PageHeader', 'Pagination', 'Popconfirm', 'Popover', 'Progress', 'Radio', 'RadioButton', 'RadioGroup', 'Rate', 'Result', 'Row', 'Select', 'SelectOptGroup', 'SelectOption', 'Skeleton', 'SkeletonButton', 'SkeletonAvatar', 'SkeletonInput', 'SkeletonImage', 'Slider', 'Space', 'Spin', 'Steps', 'Step', 'Switch', 'Table', 'TableColumn', 'TableColumnGroup', 'TableSummary', 'TableSummaryRow', 'TableSummaryCell', 'Transfer', 'Tree', 'TreeNode', 'DirectoryTree', 'TreeSelect', 'TreeSelectNode', 'Tabs', 'TabPane', 'Tag', 'CheckableTag', 'TimePicker', 'TimeRangePicker', 'Timeline', 'TimelineItem', 'Tooltip', 'Typography', 'TypographyLink', 'TypographyParagraph', 'TypographyText', 'TypographyTitle', 'Upload', 'UploadDragger', 'LocaleProvider']
-const prefix = 'A'
+const primitiveNames = ['Affix', 'Anchor', 'AnchorLink', 'AutoComplete', 'AutoCompleteOptGroup', 'AutoCompleteOption', 'Alert', 'Avatar', 'AvatarGroup', 'BackTop', 'Badge', 'BadgeRibbon', 'Breadcrumb', 'BreadcrumbItem', 'BreadcrumbSeparator', 'Button', 'ButtonGroup', 'Calendar', 'Card', 'CardGrid', 'CardMeta', 'Collapse', 'CollapsePanel', 'Carousel', 'Cascader', 'Checkbox', 'CheckboxGroup', 'Col', 'Comment', 'ConfigProvider', 'DatePicker', 'MonthPicker', 'WeekPicker', 'RangePicker', 'QuarterPicker', 'Descriptions', 'DescriptionsItem', 'Divider', 'Dropdown', 'DropdownButton', 'Drawer', 'Empty', 'Form', 'FormItem', 'FormItemRest', 'Grid', 'Input', 'InputGroup', 'InputPassword', 'InputSearch', 'Textarea', 'Image', 'ImagePreviewGroup', 'InputNumber', 'Layout', 'LayoutHeader', 'LayoutSider', 'LayoutFooter', 'LayoutContent', 'List', 'ListItem', 'ListItemMeta', 'Menu', 'MenuDivider', 'MenuItem', 'MenuItemGroup', 'SubMenu', 'Mentions', 'MentionsOption', 'Modal', 'Statistic', 'StatisticCountdown', 'PageHeader', 'Pagination', 'Popconfirm', 'Popover', 'Progress', 'Radio', 'RadioButton', 'RadioGroup', 'Rate', 'Result', 'Row', 'Select', 'SelectOptGroup', 'SelectOption', 'Skeleton', 'SkeletonButton', 'SkeletonAvatar', 'SkeletonInput', 'SkeletonImage', 'Slider', 'Space', 'Spin', 'Steps', 'Step', 'Switch', 'Table', 'TableColumn', 'TableColumnGroup', 'TableSummary', 'TableSummaryRow', 'TableSummaryCell', 'Transfer', 'Tree', 'TreeNode', 'DirectoryTree', 'TreeSelect', 'TreeSelectNode', 'Tabs', 'TabPane', 'Tag', 'CheckableTag', 'TimePicker', 'TimeRangePicker', 'Timeline', 'TimelineItem', 'Tooltip', 'Typography', 'TypographyLink', 'TypographyParagraph', 'TypographyText', 'TypographyTitle', 'Upload', 'UploadDragger', 'LocaleProvider', 'FloatButton', 'FloatButtonGroup', 'Qrcode', 'Watermark', 'Segmented', 'Tour', 'SpaceCompact', 'StyleProvider', 'Flex', 'App']
 
 let antdvNames: Set<string>
 
 function genAntdNames(primitiveNames: string[]): void {
-  antdvNames = new Set(primitiveNames.map(name => `${prefix}${name}`))
+  // use primitiveNames to construct antdvNames,
+  // in order to make options.resolvePrefix compatible
+  antdvNames = new Set(primitiveNames)
 }
 genAntdNames(primitiveNames)
 
 function isAntdv(compName: string): boolean {
   return antdvNames.has(compName)
+}
+
+function getImportName(compName: string): string {
+  if (compName === 'Qrcode')
+    return 'QRCode'
+  else if (compName === 'SpaceCompact')
+    return 'Compact'
+  return compName
 }
 
 /**
@@ -257,24 +333,25 @@ function isAntdv(compName: string): boolean {
 export function AntDesignVueResolver(options: AntDesignVueResolverOptions = {
 
 }): ComponentResolver {
+  const originPrefix = options.prefix ?? 'A'
   return {
     type: 'component',
     resolve: (name: string) => {
       if (options.resolveIcons && name.match(/(Outlined|Filled|TwoTone)$/)) {
         return {
-          importName: name,
-          path: '@ant-design/icons-vue',
+          name,
+          from: '@ant-design/icons-vue',
         }
       }
 
-      if (isAntdv(name) && !options?.exclude?.includes(name)) {
-        const importName = name.slice(1)
-        const { cjs = false } = options
-        const path = `ant-design-vue/${cjs ? 'lib' : 'es'}`
+      const [compName, prefix] = [name.slice(originPrefix.length), name.slice(0, originPrefix.length)]
+      if (prefix === originPrefix && isAntdv(compName) && !options?.exclude?.includes(compName)) {
+        const { cjs = false, packageName = 'ant-design-vue' } = options
+        const path = `${packageName}/${cjs ? 'lib' : 'es'}`
         return {
-          importName,
-          path,
-          sideEffects: getSideEffects(importName, options),
+          name: getImportName(compName),
+          from: path,
+          sideEffects: getSideEffects(compName, options),
         }
       }
     },

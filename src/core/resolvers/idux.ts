@@ -1,17 +1,29 @@
 import type { ComponentResolver } from '../../types'
-import { kebabCase } from '../utils'
+import { compare } from 'compare-versions'
+import { resolveModule } from 'local-pkg'
+import { getPkgVersion, kebabCase } from '../utils'
 
+// @keep-sorted
 const specialComponents: Record<string, string> = {
+  CdkClickOutside: 'click-outside',
+  CdkDraggable: 'drag-drop',
+  CdkResizable: 'resize',
+  CdkResizableHandle: 'resize',
+  CdkResizeObserver: 'resize',
   CdkVirtualScroll: 'scroll',
   IxAutoComplete: 'auto-complete',
   IxBackTop: 'back-top',
-  IxDatePicker: 'date-picker',
   IxCol: 'grid',
-  IxRow: 'grid',
+  IxDatePicker: 'date-picker',
+  IxDateRangePicker: 'date-picker',
   IxInputNumber: 'input-number',
+  IxLoadingBar: 'loading-bar',
+  IxLoadingBarProvider: 'loading-bar',
+  IxRow: 'grid',
   IxTab: 'tabs',
-  IxTreeSelect: 'tree-select',
   IxTimePicker: 'time-picker',
+  IxTimeRangePicker: 'time-picker',
+  IxTreeSelect: 'tree-select',
 }
 
 export interface IduxResolverOptions {
@@ -25,6 +37,26 @@ export interface IduxResolverOptions {
    * import style along with components
    */
   importStyle?: 'css' | 'less'
+  /**
+   * theme for import style
+   *
+   * @default 'default' for 1.x version
+   */
+  importStyleTheme?: string
+
+  /**
+   * The scope of the packages.
+   *
+   * @default '@idux'
+   */
+  scope?: string
+
+  /**
+   * specify idux version to load style
+   *
+   * @default installed version
+   */
+  version?: string
 }
 
 /**
@@ -35,8 +67,9 @@ export interface IduxResolverOptions {
 export function IduxResolver(options: IduxResolverOptions = {}): ComponentResolver {
   return {
     type: 'component',
-    resolve: (name: string) => {
-      const { importStyle, exclude = [] } = options
+    resolve: async (name: string) => {
+      const { importStyle, importStyleTheme, exclude = [], scope = '@idux' } = options
+
       if (exclude.includes(name))
         return
 
@@ -44,19 +77,19 @@ export function IduxResolver(options: IduxResolverOptions = {}): ComponentResolv
       if (!packageName)
         return
 
+      const resolvedVersion = await getPkgVersion(`${scope}/${packageName}`, '2.0.0')
+
       let dirname = specialComponents[name]
       if (!dirname) {
         const nameIndex = packageName === 'pro' ? 2 : 1
         dirname = kebabCase(name).split('-')[nameIndex]
       }
 
-      const path = `@idux/${packageName}/${dirname}`
+      const path = `${scope}/${packageName}/${dirname}`
 
-      let sideEffects: string | undefined
-      if (packageName !== 'cdk' && importStyle)
-        sideEffects = `${path}/style/themes/${importStyle === 'css' ? 'default_css' : 'default'}`
+      const sideEffects = packageName === 'cdk' ? undefined : getSideEffects(resolvedVersion, path, importStyle, importStyleTheme)
 
-      return { importName: name, path, sideEffects }
+      return { name, from: path, sideEffects }
     },
   }
 }
@@ -72,4 +105,33 @@ function getPackageName(name: string) {
     packageName = 'components'
 
   return packageName
+}
+
+function getSideEffects(version: string, path: string, importStyle?: 'css' | 'less', importStyleTheme?: string): string | string[] | undefined {
+  if (!importStyle)
+    return
+
+  if (compare(version, '2.0.0-beta.0', '<'))
+    return getLegacySideEffects(path, importStyle, importStyleTheme)
+
+  const styleRoot = `${path}/style`
+  const themeRoot = `${path}/theme`
+
+  const styleImport = `${styleRoot}/${importStyle === 'css' ? 'index_css' : 'index'}`
+  if (!resolveModule(styleImport))
+    return
+
+  const themeImport = `${themeRoot}/${importStyleTheme}.css`
+  if (!importStyleTheme || !resolveModule(themeImport))
+    return styleImport
+
+  return [styleImport, `${themeRoot}/${importStyleTheme}`]
+}
+
+function getLegacySideEffects(path: string, importStyle: 'css' | 'less', importStyleTheme: string = 'default'): string | undefined {
+  const styleImport = `${path}/style/themes/${importStyle === 'css' ? `${importStyleTheme}_css` : importStyleTheme}`
+  if (!resolveModule(styleImport))
+    return
+
+  return styleImport
 }

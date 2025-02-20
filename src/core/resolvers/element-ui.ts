@@ -11,6 +11,11 @@ export interface ElementUiResolverOptions {
    * @default 'css'
    */
   importStyle?: boolean | 'css' | 'sass'
+
+  /**
+   * exclude component name, if match do not resolve the name
+   */
+  exclude?: RegExp
 }
 
 function getSideEffects(
@@ -46,16 +51,18 @@ export function ElementUiResolver(options: ElementUiResolverOptions = {}): Compo
   return {
     type: 'component',
     resolve: (name: string) => {
+      if (options.exclude && name.match(options.exclude))
+        return
       if (/^El[A-Z]/.test(name)) {
         const compName = name.slice(2)
         const partialName = kebabCase(compName)
         if (partialName === 'collapse-transition') {
           return {
-            path: `element-ui/lib/transitions/${partialName}`,
+            from: `element-ui/lib/transitions/${partialName}`,
           }
         }
         return {
-          path: `element-ui/lib/${partialName}`,
+          from: `element-ui/lib/${partialName}`,
           sideEffects: getSideEffects(partialName, options),
         }
       }

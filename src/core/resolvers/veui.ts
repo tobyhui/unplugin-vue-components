@@ -1,6 +1,7 @@
-import { join, normalize } from 'path'
 import type { ComponentResolver, SideEffectsInfo } from '../../types'
-import { camelCase, kebabCase, pascalCase, resolveImportPath } from '../utils'
+import { join, normalize } from 'node:path'
+import { resolvePathSync } from 'mlly'
+import { camelCase, kebabCase, pascalCase } from '../utils'
 
 interface VeuiPeerConfig {
   /**
@@ -67,17 +68,16 @@ let components: Set<string> | undefined
  *
  * @link https://github.com/ecomfe/veui
  */
-export function VeuiResolver(options: VeuiResolverOptions): ComponentResolver {
+export function VeuiResolver(options: VeuiResolverOptions = {}): ComponentResolver {
   const { alias = VEUI_PACKAGE_NAME } = options
 
   if (!components) {
     try {
-      /* eslint-disable @typescript-eslint/no-var-requires */
+      // eslint-disable-next-line ts/no-require-imports
       const componentsData = require(`${alias}/components.json`) as ComponentInfo[]
-
       components = new Set(componentsData.map(({ name }) => name))
     }
-    catch (e) {
+    catch {
       throw new Error('[unplugin-vue-components:veui] VEUI is not installed')
     }
   }
@@ -88,11 +88,12 @@ export function VeuiResolver(options: VeuiResolverOptions): ComponentResolver {
       if (name.match(/^Veui[A-Z]/)) {
         const componentName = name.slice(4)
 
-        if (!components!.has(componentName)) return
+        if (!components!.has(componentName))
+          return
 
         const sideEffects = getSideEffects(componentName, options)
 
-        return { importName: componentName, path: alias, sideEffects }
+        return { name: componentName, from: alias, sideEffects }
       }
     },
   }
@@ -109,10 +110,10 @@ const peerPaths = new Map<string, boolean>()
 function assertPeerPath(peerPath: string) {
   if (!peerPaths.has(peerPath)) {
     try {
-      resolveImportPath(peerPath)
+      resolvePathSync(peerPath)
       peerPaths.set(peerPath, true)
     }
-    catch (e) {
+    catch {
       peerPaths.set(peerPath, false)
     }
   }

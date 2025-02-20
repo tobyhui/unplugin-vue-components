@@ -1,5 +1,5 @@
-import cv from 'compare-versions'
 import type { ComponentInfo, ComponentResolver, SideEffectsInfo } from '../../types'
+import { compare } from 'compare-versions'
 import { getPkgVersion, kebabCase } from '../utils'
 
 export interface ElementPlusResolverOptions {
@@ -33,17 +33,25 @@ export interface ElementPlusResolverOptions {
    * exclude component name, if match do not resolve the name
    */
   exclude?: RegExp
+
+  /**
+   * a list of component names that have no styles, so resolving their styles file should be prevented
+   */
+  noStylesComponents?: string[]
+
+  /**
+   * nightly version
+   */
+  nightly?: boolean
 }
 
 type ElementPlusResolverOptionsResolved = Required<Omit<ElementPlusResolverOptions, 'exclude'>> &
-Pick<ElementPlusResolverOptions, 'exclude'>
+  Pick<ElementPlusResolverOptions, 'exclude'>
 
 /**
  * @deprecated
  * @param partialName
  * @param options
- *
- * @returns
  */
 function getSideEffectsLegacy(
   partialName: string,
@@ -68,14 +76,20 @@ function getSideEffectsLegacy(
 }
 
 function getSideEffects(dirName: string, options: ElementPlusResolverOptionsResolved): SideEffectsInfo | undefined {
-  const { importStyle, ssr } = options
-  const themeFolder = 'element-plus/theme-chalk'
-  const esComponentsFolder = 'element-plus/es/components'
+  const { importStyle, ssr, nightly } = options
+  const themeFolder = nightly ? '@element-plus/nightly/theme-chalk' : 'element-plus/theme-chalk'
+  const esComponentsFolder = nightly ? '@element-plus/nightly/es/components' : 'element-plus/es/components'
 
-  if (importStyle === 'sass')
-    return ssr ? `${themeFolder}/src/${dirName}.scss` : `${esComponentsFolder}/${dirName}/style/index`
-  else if (importStyle === true || importStyle === 'css')
-    return ssr ? `${themeFolder}/el-${dirName}.css` : `${esComponentsFolder}/${dirName}/style/css`
+  if (importStyle === 'sass') {
+    return ssr
+      ? [`${themeFolder}/src/base.scss`, `${themeFolder}/src/${dirName}.scss`]
+      : [`${esComponentsFolder}/base/style/index`, `${esComponentsFolder}/${dirName}/style/index`]
+  }
+  else if (importStyle === true || importStyle === 'css') {
+    return ssr
+      ? [`${themeFolder}/base.css`, `${themeFolder}/el-${dirName}.css`]
+      : [`${esComponentsFolder}/base/style/css`, `${esComponentsFolder}/${dirName}/style/css`]
+  }
 }
 
 function resolveComponent(name: string, options: ElementPlusResolverOptionsResolved): ComponentInfo | undefined {
@@ -85,56 +99,67 @@ function resolveComponent(name: string, options: ElementPlusResolverOptionsResol
   if (!name.match(/^El[A-Z]/))
     return
 
+  if (name.match(/^ElIcon.+/)) {
+    return {
+      name: name.replace(/^ElIcon/, ''),
+      from: '@element-plus/icons-vue',
+    }
+  }
+
   const partialName = kebabCase(name.slice(2))// ElTableColumn -> table-column
-  const { version, ssr } = options
+  const { version, ssr, nightly } = options
 
   // >=1.1.0-beta.1
-  if (cv.compare(version, '1.1.0-beta.1', '>=')) {
+  if (compare(version, '1.1.0-beta.1', '>=') || nightly) {
     return {
-      importName: name,
-      path: `element-plus/${ssr ? 'lib' : 'es'}`,
+      name,
+      from: `${nightly ? '@element-plus/nightly' : 'element-plus'}/${ssr ? 'lib' : 'es'}`,
       sideEffects: getSideEffects(partialName, options),
     }
   }
   // >=1.0.2-beta.28
-  else if (cv.compare(version, '1.0.2-beta.28', '>=')) {
+  else if (compare(version, '1.0.2-beta.28', '>=')) {
     return {
-      path: `element-plus/es/el-${partialName}`,
+      from: `element-plus/es/el-${partialName}`,
       sideEffects: getSideEffectsLegacy(partialName, options),
     }
   }
   // for <=1.0.1
   else {
     return {
-      path: `element-plus/lib/el-${partialName}`,
+      from: `element-plus/lib/el-${partialName}`,
       sideEffects: getSideEffectsLegacy(partialName, options),
     }
   }
 }
 
 function resolveDirective(name: string, options: ElementPlusResolverOptionsResolved): ComponentInfo | undefined {
-  if (!options.directives) return
+  if (!options.directives)
+    return
 
-  const directives: Record<string, { importName: string; styleName: string }> = {
+  const directives: Record<string, { importName: string, styleName: string }> = {
     Loading: { importName: 'ElLoadingDirective', styleName: 'loading' },
     Popover: { importName: 'ElPopoverDirective', styleName: 'popover' },
     InfiniteScroll: { importName: 'ElInfiniteScroll', styleName: 'infinite-scroll' },
   }
 
   const directive = directives[name]
-  if (!directive) return
+  if (!directive)
+    return
 
-  const { version, ssr } = options
+  const { version, ssr, nightly } = options
 
   // >=1.1.0-beta.1
-  if (cv.compare(version, '1.1.0-beta.1', '>=')) {
+  if (compare(version, '1.1.0-beta.1', '>=') || nightly) {
     return {
-      importName: directive.importName,
-      path: `element-plus/${ssr ? 'lib' : 'es'}`,
+      name: directive.importName,
+      from: `${nightly ? '@element-plus/nightly' : 'element-plus'}/${ssr ? 'lib' : 'es'}`,
       sideEffects: getSideEffects(directive.styleName, options),
     }
   }
 }
+
+const noStylesComponents = ['ElAutoResizer']
 
 /**
  * Resolver for Element Plus
@@ -156,10 +181,12 @@ export function ElementPlusResolver(
       return optionsResolved
     optionsResolved = {
       ssr: false,
-      version: await getPkgVersion('element-plus', '1.1.0-beta.21'),
+      version: await getPkgVersion('element-plus', '2.2.2'),
       importStyle: 'css',
       directives: true,
       exclude: undefined,
+      noStylesComponents: options.noStylesComponents || [],
+      nightly: false,
       ...options,
     }
     return optionsResolved
@@ -168,13 +195,17 @@ export function ElementPlusResolver(
   return [
     {
       type: 'component',
-      resolve: async(name: string) => {
-        return resolveComponent(name, await resolveOptions())
+      resolve: async (name: string) => {
+        const options = await resolveOptions()
+
+        if ([...options.noStylesComponents, ...noStylesComponents].includes(name))
+          return resolveComponent(name, { ...options, importStyle: false })
+        else return resolveComponent(name, options)
       },
     },
     {
       type: 'directive',
-      resolve: async(name: string) => {
+      resolve: async (name: string) => {
         return resolveDirective(name, await resolveOptions())
       },
     },

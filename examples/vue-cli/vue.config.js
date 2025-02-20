@@ -1,8 +1,6 @@
-/* eslint-disable @typescript-eslint/no-var-requires */
-
-const ScriptSetup = require('unplugin-vue2-script-setup/webpack')
-const Icons = require('unplugin-icons/webpack')
 const IconsResolver = require('unplugin-icons/resolver')
+const Icons = require('unplugin-icons/webpack')
+const ScriptSetup = require('unplugin-vue2-script-setup/webpack')
 const Components = require('unplugin-vue-components/webpack')
 
 /**

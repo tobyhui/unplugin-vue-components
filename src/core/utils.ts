@@ -1,13 +1,14 @@
-import { parse } from 'path'
-import minimatch from 'minimatch'
-import resolve from 'resolve'
+import type { FilterPattern } from 'unplugin-utils'
+import type { ComponentInfo, ImportInfo, ImportInfoLegacy, Options, ResolvedOptions } from '../types'
+import type { Context } from './context'
+import { parse } from 'node:path'
+import process from 'node:process'
 import { slash, toArray } from '@antfu/utils'
 import {
   getPackageInfo,
   isPackageExists,
 } from 'local-pkg'
-import type { ComponentInfo, ImportInfo, ResolvedOptions } from '../types'
-import type { Context } from './context'
+import { minimatch } from 'minimatch'
 import { DISABLE_COMMENT } from './constants'
 
 export const isSSR = Boolean(process.env.SSR || process.env.SSG || process.env.VITE_SSR || process.env.VITE_SSG)
@@ -58,15 +59,17 @@ export function isEmpty(value: any) {
 
 export function matchGlobs(filepath: string, globs: string[]) {
   for (const glob of globs) {
-    if (minimatch(slash(filepath), glob))
-      return true
+    const isNegated = glob.startsWith('!')
+    const match = minimatch(slash(filepath), isNegated ? glob.slice(1) : glob)
+    if (match)
+      return !isNegated
   }
   return false
 }
 
-export function getTransformedPath(path: string, ctx: Context): string {
-  if (ctx.options.importPathTransform) {
-    const result = ctx.options.importPathTransform(path)
+export function getTransformedPath(path: string, importPathTransform?: Options['importPathTransform']): string {
+  if (importPathTransform) {
+    const result = importPathTransform(path)
     if (result != null)
       path = result
   }
@@ -77,19 +80,31 @@ export function getTransformedPath(path: string, ctx: Context): string {
 export function stringifyImport(info: ImportInfo | string) {
   if (typeof info === 'string')
     return `import '${info}'`
-  if (!info.name)
-    return `import '${info.path}'`
-  else if (info.importName)
-    return `import { ${info.importName} as ${info.name} } from '${info.path}'`
+  if (!info.as)
+    return `import '${info.from}'`
+  else if (info.name)
+    return `import { ${info.name} as ${info.as} } from '${info.from}'`
   else
-    return `import ${info.name} from '${info.path}'`
+    return `import ${info.as} from '${info.from}'`
 }
 
-export function stringifyComponentImport({ name, path, importName, sideEffects }: ComponentInfo, ctx: Context) {
-  path = getTransformedPath(path, ctx)
+export function normalizeComponentInfo(info: ImportInfo | ImportInfoLegacy | ComponentInfo): ComponentInfo {
+  if ('path' in info) {
+    return {
+      from: info.path,
+      as: info.name,
+      name: info.importName,
+      sideEffects: info.sideEffects,
+    }
+  }
+  return info
+}
+
+export function stringifyComponentImport({ as: name, from: path, name: importName, sideEffects }: ComponentInfo, ctx: Context) {
+  path = getTransformedPath(path, ctx.options.importPathTransform)
 
   const imports = [
-    stringifyImport({ name, path, importName }),
+    stringifyImport({ as: name, from: path, name: importName }),
   ]
 
   if (sideEffects)
@@ -99,7 +114,7 @@ export function stringifyComponentImport({ name, path, importName, sideEffects }
 }
 
 export function getNameFromFilePath(filePath: string, options: ResolvedOptions): string {
-  const { resolvedDirs, directoryAsNamespace, globalNamespaces } = options
+  const { resolvedDirs, directoryAsNamespace, globalNamespaces, collapseSamePrefixes, root } = options
 
   const parsedFilePath = parse(slash(filePath))
 
@@ -118,6 +133,10 @@ export function getNameFromFilePath(filePath: string, options: ResolvedOptions):
 
   // set parent directory as filename if it is index
   if (filename === 'index' && !directoryAsNamespace) {
+    // when use `globs` option, `resolvedDirs` will always empty, and `folders` will also empty
+    if (isEmpty(folders))
+      folders = parsedFilePath.dir.slice(root.length + 1).split('/').filter(Boolean)
+
     filename = `${folders.slice(-1)[0]}`
     return filename
   }
@@ -127,12 +146,44 @@ export function getNameFromFilePath(filePath: string, options: ResolvedOptions):
     if (globalNamespaces.some((name: string) => folders.includes(name)))
       folders = folders.filter(f => !globalNamespaces.includes(f))
 
+    folders = folders.map(f => f.replace(/[^a-z0-9\-]/gi, ''))
+
     if (filename.toLowerCase() === 'index')
       filename = ''
 
     if (!isEmpty(folders)) {
       // add folders to filename
-      filename = [...folders, filename].filter(Boolean).join('-')
+      let namespaced = [...folders, filename]
+
+      if (collapseSamePrefixes) {
+        const collapsed: string[] = []
+
+        for (const fileOrFolderName of namespaced) {
+          let cumulativePrefix = ''
+          let didCollapse = false
+          const pascalCasedName = pascalCase(fileOrFolderName)
+
+          for (const parentFolder of [...collapsed].reverse()) {
+            cumulativePrefix = `${parentFolder}${cumulativePrefix}`
+
+            if (pascalCasedName.startsWith(cumulativePrefix)) {
+              const collapseSamePrefix = pascalCasedName.slice(cumulativePrefix.length)
+
+              collapsed.push(collapseSamePrefix)
+
+              didCollapse = true
+              break
+            }
+          }
+
+          if (!didCollapse)
+            collapsed.push(pascalCasedName)
+        }
+
+        namespaced = collapsed
+      }
+
+      filename = namespaced.filter(Boolean).join('-')
     }
 
     return filename
@@ -173,8 +224,21 @@ export function shouldTransform(code: string) {
   return true
 }
 
-export function resolveImportPath(importName: string): string | undefined {
-  return resolve.sync(importName, {
-    preserveSymlinks: false,
-  })
+export function isExclude(name: string, exclude?: FilterPattern): boolean {
+  if (!exclude)
+    return false
+
+  if (typeof exclude === 'string')
+    return name === exclude
+
+  if (exclude instanceof RegExp)
+    return !!name.match(exclude)
+
+  if (Array.isArray(exclude)) {
+    for (const item of exclude) {
+      if (name === item || name.match(item))
+        return true
+    }
+  }
+  return false
 }

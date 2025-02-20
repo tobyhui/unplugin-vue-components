@@ -1,46 +1,123 @@
-// Vitest Snapshot v1
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`search > should with namespace & collapse 1`] = `
+[
+  {
+    "as": "Avatar",
+    "from": "src/components/global/avatar.vue",
+  },
+  {
+    "as": "Book",
+    "from": "src/components/book/index.vue",
+  },
+  {
+    "as": "CollapseFolderAndComponentFromRoot",
+    "from": "src/components/collapse/collapseFolder/CollapseFolderAndComponentFromRoot.vue",
+  },
+  {
+    "as": "CollapseFolderAndComponentPartially",
+    "from": "src/components/collapse/collapseFolder/FolderAndComponentPartially.vue",
+  },
+  {
+    "as": "ComponentA",
+    "from": "src/components/ComponentA.vue",
+  },
+  {
+    "as": "ComponentAsync",
+    "from": "src/components/ComponentAsync.vue",
+  },
+  {
+    "as": "ComponentB",
+    "from": "src/components/ComponentB.vue",
+  },
+  {
+    "as": "ComponentC",
+    "from": "src/components/component-c.vue",
+  },
+  {
+    "as": "ComponentD",
+    "from": "src/components/ComponentD.vue",
+  },
+  {
+    "as": "KebabCaseCollapseFile",
+    "from": "src/components/kebab-case/kebab-case-collapse/KebabCaseCollapseFile.vue",
+  },
+  {
+    "as": "KebabCaseFile",
+    "from": "src/components/kebab-case/KebabCaseFile.vue",
+  },
+  {
+    "as": "Recursive",
+    "from": "src/components/Recursive.vue",
+  },
+  {
+    "as": "UiButton",
+    "from": "src/components/ui/button.vue",
+  },
+  {
+    "as": "UiNestedCheckbox",
+    "from": "src/components/ui/nested/checkbox.vue",
+  },
+]
+`;
 
 exports[`search > should with namespace 1`] = `
 [
   {
-    "name": "Avatar",
-    "path": "src/components/global/avatar.vue",
+    "as": "Avatar",
+    "from": "src/components/global/avatar.vue",
   },
   {
-    "name": "Book",
-    "path": "src/components/book/index.vue",
+    "as": "Book",
+    "from": "src/components/book/index.vue",
   },
   {
-    "name": "ComponentA",
-    "path": "src/components/ComponentA.vue",
+    "as": "CollapseCollapseFolderCollapseFolderAndComponentFromRoot",
+    "from": "src/components/collapse/collapseFolder/CollapseFolderAndComponentFromRoot.vue",
   },
   {
-    "name": "ComponentAsync",
-    "path": "src/components/ComponentAsync.vue",
+    "as": "CollapseCollapseFolderFolderAndComponentPartially",
+    "from": "src/components/collapse/collapseFolder/FolderAndComponentPartially.vue",
   },
   {
-    "name": "ComponentB",
-    "path": "src/components/ComponentB.vue",
+    "as": "ComponentA",
+    "from": "src/components/ComponentA.vue",
   },
   {
-    "name": "ComponentC",
-    "path": "src/components/component-c.vue",
+    "as": "ComponentAsync",
+    "from": "src/components/ComponentAsync.vue",
   },
   {
-    "name": "ComponentD",
-    "path": "src/components/ComponentD.vue",
+    "as": "ComponentB",
+    "from": "src/components/ComponentB.vue",
   },
   {
-    "name": "Recursive",
-    "path": "src/components/Recursive.vue",
+    "as": "ComponentC",
+    "from": "src/components/component-c.vue",
   },
   {
-    "name": "UiButton",
-    "path": "src/components/ui/button.vue",
+    "as": "ComponentD",
+    "from": "src/components/ComponentD.vue",
   },
   {
-    "name": "UiNestedCheckbox",
-    "path": "src/components/ui/nested/checkbox.vue",
+    "as": "KebabCaseKebabCaseCollapseKebabCaseCollapseFile",
+    "from": "src/components/kebab-case/kebab-case-collapse/KebabCaseCollapseFile.vue",
+  },
+  {
+    "as": "KebabCaseKebabCaseFile",
+    "from": "src/components/kebab-case/KebabCaseFile.vue",
+  },
+  {
+    "as": "Recursive",
+    "from": "src/components/Recursive.vue",
+  },
+  {
+    "as": "UiButton",
+    "from": "src/components/ui/button.vue",
+  },
+  {
+    "as": "UiNestedCheckbox",
+    "from": "src/components/ui/nested/checkbox.vue",
   },
 ]
 `;
@@ -48,44 +125,60 @@ exports[`search > should with namespace 1`] = `
 exports[`search > should work 1`] = `
 [
   {
-    "name": "Avatar",
-    "path": "src/components/global/avatar.vue",
+    "as": "Avatar",
+    "from": "src/components/global/avatar.vue",
   },
   {
-    "name": "Book",
-    "path": "src/components/book/index.vue",
+    "as": "Book",
+    "from": "src/components/book/index.vue",
   },
   {
-    "name": "Button",
-    "path": "src/components/ui/button.vue",
+    "as": "Button",
+    "from": "src/components/ui/button.vue",
   },
   {
-    "name": "Checkbox",
-    "path": "src/components/ui/nested/checkbox.vue",
+    "as": "Checkbox",
+    "from": "src/components/ui/nested/checkbox.vue",
   },
   {
-    "name": "ComponentA",
-    "path": "src/components/ComponentA.vue",
+    "as": "CollapseFolderAndComponentFromRoot",
+    "from": "src/components/collapse/collapseFolder/CollapseFolderAndComponentFromRoot.vue",
   },
   {
-    "name": "ComponentAsync",
-    "path": "src/components/ComponentAsync.vue",
+    "as": "ComponentA",
+    "from": "src/components/ComponentA.vue",
   },
   {
-    "name": "ComponentB",
-    "path": "src/components/ComponentB.vue",
+    "as": "ComponentAsync",
+    "from": "src/components/ComponentAsync.vue",
   },
   {
-    "name": "ComponentC",
-    "path": "src/components/component-c.vue",
+    "as": "ComponentB",
+    "from": "src/components/ComponentB.vue",
   },
   {
-    "name": "ComponentD",
-    "path": "src/components/ComponentD.vue",
+    "as": "ComponentC",
+    "from": "src/components/component-c.vue",
   },
   {
-    "name": "Recursive",
-    "path": "src/components/Recursive.vue",
+    "as": "ComponentD",
+    "from": "src/components/ComponentD.vue",
+  },
+  {
+    "as": "FolderAndComponentPartially",
+    "from": "src/components/collapse/collapseFolder/FolderAndComponentPartially.vue",
+  },
+  {
+    "as": "KebabCaseCollapseFile",
+    "from": "src/components/kebab-case/kebab-case-collapse/KebabCaseCollapseFile.vue",
+  },
+  {
+    "as": "KebabCaseFile",
+    "from": "src/components/kebab-case/KebabCaseFile.vue",
+  },
+  {
+    "as": "Recursive",
+    "from": "src/components/Recursive.vue",
   },
 ]
 `;

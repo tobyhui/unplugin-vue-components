@@ -1,4 +1,4 @@
-import type { ComponentResolveResult, ComponentResolver } from '../../types'
+import type { ComponentResolver, ComponentResolveResult } from '../../types'
 import { kebabCase } from '../utils'
 
 export interface VarletUIResolverOptions {
@@ -9,6 +9,7 @@ export interface VarletUIResolverOptions {
    * @default 'vue3'
    */
   version?: 'vue3' | 'vue2'
+
   /**
    * import style along with components
    *
@@ -17,11 +18,25 @@ export interface VarletUIResolverOptions {
   importStyle?: boolean | 'css' | 'less'
 
   /**
+   * style entry file extname
+   *
+   * @default '.mjs'
+   */
+  styleExtname?: string
+
+  /**
    * auto import for directives
    *
    * @default true
    */
   directives?: boolean
+
+  /**
+   * compatible with unplugin-auto-import
+   *
+   * @default false
+   */
+  autoImport?: boolean
 
   /**
    * @deprecated use `importStyle: 'css'` instead
@@ -34,11 +49,16 @@ export interface VarletUIResolverOptions {
   importLess?: boolean
 }
 
+const varFunctions = ['ImagePreview', 'Snackbar', 'Picker', 'ActionSheet', 'Dialog', 'Locale', 'StyleProvider', 'LoadingBar']
+const varDirectives = ['Ripple', 'Lazy', 'Hover']
+
 export function getResolved(name: string, options: VarletUIResolverOptions): ComponentResolveResult {
   const {
     importStyle = 'css',
     importCss = true,
     importLess,
+    styleExtname = '.mjs',
+    autoImport = false,
     version = 'vue3',
   } = options
 
@@ -47,14 +67,14 @@ export function getResolved(name: string, options: VarletUIResolverOptions): Com
 
   if (importStyle || importCss) {
     if (importStyle === 'less' || importLess)
-      sideEffects.push(`${path}/es/${kebabCase(name)}/style/less.js`)
+      sideEffects.push(`${path}/es/${kebabCase(name)}/style/less`)
     else
-      sideEffects.push(`${path}/es/${kebabCase(name)}/style`)
+      sideEffects.push(`${path}/es/${kebabCase(name)}/style/index${styleExtname}`)
   }
 
   return {
-    path,
-    importName: `_${name}Component`,
+    from: path,
+    name: autoImport ? name : `_${name}Component`,
     sideEffects,
   }
 }
@@ -70,7 +90,13 @@ export function VarletUIResolver(options: VarletUIResolverOptions = {}): Compone
     {
       type: 'component',
       resolve: (name: string) => {
-        if (name.startsWith('Var')) return getResolved(name.slice(3), options)
+        const { autoImport = false } = options
+
+        if (autoImport && varFunctions.includes(name))
+          return getResolved(name, options)
+
+        if (name.startsWith('Var'))
+          return getResolved(name.slice(3), options)
       },
     },
     {
@@ -78,7 +104,11 @@ export function VarletUIResolver(options: VarletUIResolverOptions = {}): Compone
       resolve: (name: string) => {
         const { directives = true } = options
 
-        if (!directives) return
+        if (!directives)
+          return
+
+        if (!varDirectives.includes(name))
+          return
 
         return getResolved(name, options)
       },

@@ -1,13 +1,8 @@
-import type { ComponentResolver, SideEffectsInfo } from '../../types'
-import { kebabCase } from '../utils'
+import type { FilterPattern } from 'unplugin-utils'
+import type { ComponentResolver } from '../../types'
+import { isExclude } from '../utils'
 
 export interface TDesignResolverOptions {
-  /**
-   * import style along with components
-   * @default 'css'
-   */
-  importStyle?: boolean | 'css' | 'less'
-
   /**
    * select the specified library
    * @default 'vue'
@@ -19,82 +14,51 @@ export interface TDesignResolverOptions {
    * @default false
    */
   resolveIcons?: boolean
-}
 
-function getSideEffects(importName: string, options: TDesignResolverOptions): SideEffectsInfo | undefined {
-  const { library = 'vue', importStyle = 'css' } = options
-  let fileName = kebabCase(importName)
+  /**
+   * whether to import ESM version
+   * @default false
+   */
+  esm?: boolean
 
-  if (!importStyle)
-    return
-
-  if (['config-provider', 'icon'].includes(fileName))
-    return
-
-  if (fileName.includes('-') && fileName !== 'input-number') {
-    const prefix = fileName.slice(0, fileName.indexOf('-'))
-    const container = ['anchor', 'avatar', 'breadcrumb', 'checkbox', 'dropdown', 'form', 'input', 'list', 'menu', 'radio', 'slider', 'swiper']
-
-    if (container.includes(prefix))
-      fileName = prefix
-  }
-
-  if (['row', 'col'].includes(fileName))
-    fileName = 'grid'
-
-  if (fileName === 'addon')
-    fileName = 'input'
-
-  if (['aside', 'layout', 'header', 'footer', 'content'].includes(fileName))
-    fileName = 'layout'
-
-  if (['head-menu', 'submenu'].includes(fileName))
-    fileName = 'menu'
-
-  if (['option', 'option-group'].includes(fileName))
-    fileName = 'select'
-
-  if (['tab-nav', 'tab-panel'].includes(fileName))
-    fileName = 'tabs'
-
-  if (fileName === 'step-item')
-    fileName = 'steps'
-
-  if (fileName === 'check-tag')
-    fileName = 'tag'
-
-  if (fileName === 'time-range-picker')
-    fileName = 'time-picker'
-
-  if (fileName === 'date-range-picker')
-    fileName = 'date-picker'
-
-  if (importStyle === 'less')
-    return `tdesign-${library}/esm/${fileName}/style`
-
-  return `tdesign-${library}/es/${fileName}/style`
+  /**
+   * exclude component name, if match do not resolve the name
+   *
+   */
+  exclude?: FilterPattern
 }
 
 export function TDesignResolver(options: TDesignResolverOptions = {}): ComponentResolver {
+  const pluginList = ['DialogPlugin', 'LoadingPlugin', 'MessagePlugin', 'NotifyPlugin']
   return {
     type: 'component',
     resolve: (name: string) => {
-      const { library = 'vue' } = options
+      const { library = 'vue', exclude } = options
+      const importFrom = options.esm ? '/esm' : ''
+
+      if (isExclude(name, exclude))
+        return
 
       if (options.resolveIcons && name.match(/[a-z]Icon$/)) {
         return {
-          importName: name,
-          path: `tdesign-icons-${library}`,
+          name,
+          from: `tdesign-icons-${library}${importFrom}`,
         }
       }
 
-      if (name.match(/^T[A-Z]/)) {
-        const importName = name.slice(1)
+      if (name.startsWith('TTypography') || name.startsWith('Typography')) {
+        return {
+          name: name.slice(name.startsWith('TTypography') ? 11 : 10),
+          from: `tdesign-${library}${importFrom}`,
+        }
+      }
+
+      if (name.match(/^T[A-Z]/) || pluginList.includes(name)) {
+        const importName = name.match(/^T[A-Z]/) ? name.slice(1) : name
 
         return {
-          importName,
-          path: `tdesign-${library}`,
-          sideEffects: getSideEffects(importName, options),
+          name: importName,
+          from: `tdesign-${library}${importFrom}`,
         }
       }
     },

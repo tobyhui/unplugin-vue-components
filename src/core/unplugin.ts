@@ -1,14 +1,19 @@
-import { createUnplugin } from 'unplugin'
-import { createFilter } from '@rollup/pluginutils'
-import chokidar from 'chokidar'
 import type { ResolvedConfig, ViteDevServer } from 'vite'
+import type { Watching } from 'webpack'
 import type { Options, PublicPluginAPI } from '../types'
+import { existsSync } from 'node:fs'
+import process from 'node:process'
+import chokidar from 'chokidar'
+import { createUnplugin } from 'unplugin'
+import { createFilter } from 'unplugin-utils'
 import { Context } from './context'
 import { shouldTransform, stringifyComponentImport } from './utils'
 
+const PLUGIN_NAME = 'unplugin:webpack'
+
 export default createUnplugin<Options>((options = {}) => {
   const filter = createFilter(
-    options.include || [/\.vue$/, /\.vue\?vue/],
+    options.include || [/\.vue$/, /\.vue\?vue/, /\.vue\?v=/],
     options.exclude || [/[\\/]node_modules[\\/]/, /[\\/]\.git[\\/]/, /[\\/]\.nuxt[\\/]/],
   )
   const ctx: Context = new Context(options)
@@ -41,7 +46,7 @@ export default createUnplugin<Options>((options = {}) => {
         return result
       }
       catch (e) {
-        this.error(e)
+        this.error(e as any)
       }
     },
 
@@ -53,9 +58,10 @@ export default createUnplugin<Options>((options = {}) => {
         if (config.plugins.find(i => i.name === 'vite-plugin-vue2'))
           ctx.setTransformer('vue2')
 
-        if (options.dts) {
+        if (ctx.options.dts) {
           ctx.searchGlob()
-          ctx.generateDeclaration()
+          if (!existsSync(ctx.options.dts))
+            ctx.generateDeclaration()
         }
 
         if (config.build.watch && config.command === 'build')
@@ -64,6 +70,35 @@ export default createUnplugin<Options>((options = {}) => {
       configureServer(server: ViteDevServer) {
         ctx.setupViteServer(server)
       },
+    },
+
+    webpack(compiler) {
+      let watcher: Watching
+      let fileDepQueue: { path: string, type: 'unlink' | 'add' }[] = []
+      compiler.hooks.watchRun.tap(PLUGIN_NAME, () => {
+        // ensure watcher is ready(supported since webpack@5.0.0-rc.1)
+        if (!watcher && compiler.watching) {
+          watcher = compiler.watching
+          ctx.setupWatcherWebpack(chokidar.watch(ctx.options.globs), (path: string, type: 'unlink' | 'add') => {
+            fileDepQueue.push({ path, type })
+            // process.nextTick is for aggregated file change event
+            process.nextTick(() => {
+              watcher.invalidate()
+            })
+          })
+        }
+      })
+      compiler.hooks.compilation.tap(PLUGIN_NAME, (compilation) => {
+        if (fileDepQueue.length) {
+          fileDepQueue.forEach(({ path, type }) => {
+            if (type === 'unlink')
+              compilation.fileDependencies.delete(path)
+            else
+              compilation.fileDependencies.add(path)
+          })
+          fileDepQueue = []
+        }
+      })
     },
   }
 })

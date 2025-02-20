@@ -1,5 +1,6 @@
 import type { ComponentResolver, SideEffectsInfo } from '../../types'
 
+// @keep-sorted
 const components = [
   'Accordion',
   'AccordionTab',
@@ -36,13 +37,20 @@ const components = [
   'Editor',
   'Fieldset',
   'FileUpload',
+  'FloatLabel',
   'FullCalendar',
   'Galleria',
+  'IconField',
+  'IconField',
   'Image',
   'InlineMessage',
   'Inplace',
+  'InputGroup',
+  'InputGroupAddon',
+  'InputIcon',
   'InputMask',
   'InputNumber',
+  'InputOtp',
   'InputSwitch',
   'InputText',
   'Knob',
@@ -51,6 +59,7 @@ const components = [
   'Menu',
   'Menubar',
   'Message',
+  'MeterGroup',
   'MultiSelect',
   'OrderList',
   'OrganizationChart',
@@ -64,6 +73,7 @@ const components = [
   'ProgressSpinner',
   'RadioButton',
   'Rating',
+  'Row',
   'ScrollPanel',
   'ScrollTop',
   'SelectButton',
@@ -74,6 +84,8 @@ const components = [
   'SplitButton',
   'Splitter',
   'SplitterPanel',
+  'Stepper',
+  'StepperPanel',
   'Steps',
   'TabMenu',
   'TabPanel',
@@ -159,7 +171,7 @@ export function PrimeVueResolver(options: PrimeVueResolverOptions = {}): Compone
 
       if (components.includes(name)) {
         return {
-          path: `primevue/${name.toLowerCase()}`,
+          from: `primevue/${name.toLowerCase()}`,
           sideEffects,
         }
       }
